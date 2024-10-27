@@ -1,0 +1,125 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class Produto {
+	String nome;
+    double volume;
+    double preco;
+
+    public Produto(String nome, double volume, double preco) {
+        this.nome = nome;
+        this.volume = volume;
+        this.preco = preco;
+    }
+}
+
+class AlgoritmoGenetico {
+    static final int TAMANHO_POPULACAO = 100;
+    static final int NUM_GERACOES = 1000;
+    static final double TAXA_MUTACAO = 0.05;
+    static final double CAPACIDADE_FURGAO = 3.0;
+
+    List<Produto> produtos;
+    Random random = new Random();
+
+    public AlgoritmoGenetico(List<Produto> produtos) {
+        this.produtos = produtos;
+    }
+
+    // Gera uma população inicial
+    public List<boolean[]> gerarPopulacaoInicial() {
+        List<boolean[]> populacao = new ArrayList<>();
+        for (int i = 0; i < TAMANHO_POPULACAO; i++) {
+            boolean[] individuo = new boolean[produtos.size()];
+            for (int j = 0; j < produtos.size(); j++) {
+                individuo[j] = random.nextBoolean(); // 0 ou 1 aleatoriamente
+            }
+            populacao.add(individuo);
+        }
+        return populacao;
+    }
+
+    // Função de aptidão: soma os valores dos itens sem exceder o volume máximo
+    public double calcularFitness(boolean[] individuo) {
+        double volumeTotal = 0;
+        double valorTotal = 0;
+        for (int i = 0; i < individuo.length; i++) {
+            if (individuo[i]) {
+                volumeTotal += produtos.get(i).volume;
+                valorTotal += produtos.get(i).preco;
+            }
+        }
+        return (volumeTotal <= CAPACIDADE_FURGAO) ? valorTotal : 0;
+    }
+
+    // Seleção por roleta viciada
+    public boolean[] selecaoRoleta(List<boolean[]> populacao) {
+        double somaFitness = 0;
+        double[] fitness = new double[TAMANHO_POPULACAO];
+        for (int i = 0; i < populacao.size(); i++) {
+            fitness[i] = calcularFitness(populacao.get(i));
+            somaFitness += fitness[i];
+        }
+
+        double valorAleatorio = random.nextDouble() * somaFitness;
+        double somaParcial = 0;
+        for (int i = 0; i < fitness.length; i++) {
+            somaParcial += fitness[i];
+            if (somaParcial >= valorAleatorio) {
+                return populacao.get(i);
+            }
+        }
+        return populacao.get(random.nextInt(populacao.size())); // fallback
+    }
+
+    // Cruzamento de um ponto
+    public boolean[] cruzamento(boolean[] pai1, boolean[] pai2) {
+        boolean[] filho = new boolean[pai1.length];
+        int pontoCorte = random.nextInt(pai1.length);
+        for (int i = 0; i < pontoCorte; i++) {
+            filho[i] = pai1[i];
+        }
+        for (int i = pontoCorte; i < pai2.length; i++) {
+            filho[i] = pai2[i];
+        }
+        return filho;
+    }
+
+    // Mutação
+    public void mutacao(boolean[] individuo) {
+        for (int i = 0; i < individuo.length; i++) {
+            if (random.nextDouble() < TAXA_MUTACAO) {
+                individuo[i] = !individuo[i]; // inverte o gene
+            }
+        }
+    }
+
+    // Execução do AG
+    public boolean[] executar() {
+        List<boolean[]> populacao = gerarPopulacaoInicial();
+
+        for (int geracao = 0; geracao < NUM_GERACOES; geracao++) {
+            List<boolean[]> novaPopulacao = new ArrayList<>();
+
+            // Seleção, cruzamento e mutação
+            for (int i = 0; i < TAMANHO_POPULACAO; i++) {
+                boolean[] pai1 = selecaoRoleta(populacao);
+                boolean[] pai2 = selecaoRoleta(populacao);
+                boolean[] filho = cruzamento(pai1, pai2);
+                mutacao(filho);
+                novaPopulacao.add(filho);
+            }
+            populacao = novaPopulacao;
+        }
+
+        // Melhor indivíduo
+        boolean[] melhor = populacao.get(0);
+        for (boolean[] individuo : populacao) {
+            if (calcularFitness(individuo) > calcularFitness(melhor)) {
+                melhor = individuo;
+            }
+        }
+        return melhor;
+    }
+}
